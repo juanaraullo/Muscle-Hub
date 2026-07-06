@@ -142,6 +142,20 @@ label.lbl{display:block;font-size:13px;font-weight:600;color:var(--fg2);margin:0
 .sw i{display:block;width:27px;height:27px;border-radius:99px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.25);
   transition:transform .2s}
 .sw.on i{transform:translateX(20px)}
+/* splash / loading screen */
+#splash{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:18px;transition:opacity .45s;text-align:center;padding:0 36px}
+#splash .logo{width:88px;height:88px;border-radius:28px;background:linear-gradient(135deg,#0a84ff,#0050c8);
+  display:flex;align-items:center;justify-content:center;box-shadow:0 12px 40px rgba(10,132,255,.35);
+  animation:pop .55s cubic-bezier(.32,.72,.35,1)}
+#splash .logo svg{width:46px;height:46px;color:#fff}
+#splash .hi{font-size:14px;font-weight:600;color:var(--fg2);animation:rise .5s .1s both}
+#splash .line{font-size:21px;font-weight:800;line-height:1.35;max-width:320px;animation:rise .55s .2s both}
+#splash .bar{width:120px;height:4px;border-radius:99px;background:var(--chip);overflow:hidden;animation:rise .5s .3s both}
+#splash .bar i{display:block;height:100%;width:40%;border-radius:99px;background:var(--accent);animation:slide 1.1s ease-in-out infinite}
+@keyframes pop{from{transform:scale(.55);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes rise{from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes slide{0%{margin-left:-40%}100%{margin-left:100%}}
 .empty{text-align:center;padding:44px 24px;color:var(--fg2)}
 .empty .ico{width:56px;height:56px;border-radius:18px;background:var(--accent-soft);color:var(--accent);
   display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:24px}
@@ -159,6 +173,7 @@ label.lbl{display:block;font-size:13px;font-weight:600;color:var(--fg2);margin:0
 <div id="restbar" style="display:none"></div>
 <div id="toast"></div>
 <div id="sheetroot"></div>
+<div id="splash"></div>
 
 <script>
 "use strict";
@@ -197,13 +212,19 @@ const EQUIP={barbell:"Barbell",dumbbell:"Dumbbell",machine:"Machine",cable:"Cabl
 const GROUP_OF={chest:"Chest",back:"Back",shoulders:"Shoulders",biceps:"Arms",triceps:"Arms",forearms:"Arms",
   quads:"Legs",hamstrings:"Legs",glutes:"Legs",calves:"Legs",abs:"Core",cardio:"Cardio","full-body":"Other"};
 const GROUP_ORDER=["Chest","Back","Shoulders","Arms","Legs","Core","Cardio","Other"];
-/* Render a list of exercises split into labelled sections. `row` renders one item. */
-function groupedHTML(list,row){
+/* default muscle used when creating a custom exercise from a group header */
+const GROUP_ADD={Chest:"chest",Back:"back",Shoulders:"shoulders",Arms:"biceps",Legs:"quads",Core:"abs",Cardio:"cardio",Other:"full-body"};
+/* Render a list of exercises split into labelled sections. `row` renders one
+   item; `withAdd` shows a "＋ Add" button per header for custom exercises. */
+function groupedHTML(list,row,withAdd){
   const buckets={};
   for(const e of list){const g=GROUP_OF[e.muscles[0]]||"Other";(buckets[g]=buckets[g]||[]).push(e);}
   return GROUP_ORDER.filter(g=>buckets[g]).map(g=>{
     const items=buckets[g].sort((a,b)=>(b.fav-a.fav)||a.name.localeCompare(b.name));
-    return `<p class="sec" style="margin:14px 4px 8px">${g.toUpperCase()} <span style="color:var(--fg3);font-weight:500">· ${items.length}</span></p>`+items.map(row).join("");
+    return `<div class="row" style="margin:14px 4px 8px">
+      <p class="sec grow" style="margin:0">${g.toUpperCase()} <span style="color:var(--fg3);font-weight:500">· ${items.length}</span></p>
+      ${withAdd?`<button style="font-size:12px;font-weight:700;color:var(--accent)" onclick="editEx(null,'${GROUP_ADD[g]}')" aria-label="Add custom ${g} exercise">＋ Add</button>`:""}
+    </div>`+items.map(row).join("");
   }).join("")||"";
 }
 const ex=(id,name,m,eq,ins,cat)=>({id:"b-"+id,name,category:cat||"strength",muscles:m,equipment:eq,instructions:ins,videoUrl:"",custom:false,fav:false});
@@ -307,6 +328,68 @@ ex("jumprope","Jump Rope",["cardio","calves"],"other",["Elbows close, spin from 
 ex("farmer","Farmer's Carry",["full-body","forearms","abs"],"dumbbell",["Heavy dumbbells at your sides, chest tall.","Walk with short, quick steps.","Keep your shoulders back the whole way."]),
 ex("sled","Sled Push",["full-body","quads","glutes"],"other",["Grip the poles with arms extended.","Drive the sled forward with powerful steps.","Keep your back flat and core braced."]),
 ex("battlerope","Battle Ropes",["full-body","shoulders","cardio"],"other",["Rope ends in hand, athletic stance.","Make alternating or double waves.","Work in short, hard intervals."],"cardio"),
+/* ── extended library: more variations per body part ── */
+ex("dbbench","Dumbbell Bench Press",["chest","triceps","shoulders"],"dumbbell",["Lie flat with a dumbbell in each hand at chest level.","Press up and slightly inward to lockout.","Lower under control to a deep stretch."]),
+ex("incfly","Incline Dumbbell Fly",["chest"],"dumbbell",["Bench at 30°, dumbbells above your chest, slight elbow bend.","Open wide until you feel an upper-chest stretch.","Squeeze back together along the same arc."]),
+ex("lowcable","Low-to-High Cable Fly",["chest","shoulders"],"cable",["Both pulleys low, slight forward lean.","Sweep the handles up and together at eye level.","Lower slowly to a full stretch."]),
+ex("machfly","Machine Chest Fly",["chest"],"machine",["Seat set so handles are at chest height.","Bring the handles together with a slight elbow bend.","Open slowly to a comfortable stretch."]),
+ex("weightdip","Weighted Dip",["chest","triceps"],"other",["Add weight with a belt, lean slightly forward.","Lower until shoulders are just below elbows.","Press back up under control."]),
+ex("landmine","Landmine Press",["chest","shoulders","triceps"],"barbell",["Bar in a landmine, end at your shoulder.","Press up and forward to extension.","Lower under control; switch sides."]),
+ex("pendlay","Pendlay Row",["back","biceps"],"barbell",["Bar on the floor each rep, torso parallel.","Row explosively to your lower chest.","Return the bar fully to the floor."]),
+ex("invrow","Inverted Row",["back","biceps"],"bodyweight",["Hang under a bar with a straight body.","Pull your chest to the bar.","Lower with control — raise your feet to make it harder."]),
+ex("pullover","Dumbbell Pullover",["back","chest"],"dumbbell",["Upper back on a bench, dumbbell over your chest.","Lower it in an arc behind your head.","Pull back over your chest with a stretch in the lats."]),
+ex("saldpd","Single-Arm Lat Pulldown",["back","biceps"],"cable",["Single handle overhead, kneel or sit tall.","Pull your elbow down to your side.","Control the stretch at the top; switch arms."]),
+ex("wgrow","Wide-Grip Seated Row",["back","shoulders"],"cable",["Wide bar, sit tall.","Pull to your chest with elbows high.","Return slowly to a full stretch."]),
+ex("dbshrug","Dumbbell Shrug",["back","forearms"],"dumbbell",["Heavy dumbbells at your sides.","Shrug straight up toward your ears.","Pause, then lower fully."]),
+ex("goodgirl","Reverse Hyperextension",["back","glutes","hamstrings"],"machine",["Torso on the pad, legs hanging.","Raise your legs to body height with your glutes.","Lower slowly without swinging."]),
+ex("machpull","Machine Pullover",["back"],"machine",["Sit with elbows or hands on the pads overhead.","Sweep down toward your hips using your lats.","Return slowly overhead."]),
+ex("machlat","Machine Lateral Raise",["shoulders"],"machine",["Sit with arms under the pads.","Raise your elbows out to shoulder height.","Lower slowly against the resistance."]),
+ex("plateraise","Plate Front Raise",["shoulders"],"other",["Hold a plate at your thighs with both hands.","Raise it to eye level with straight arms.","Lower slowly."]),
+ex("cuban","Cuban Rotation",["shoulders"],"dumbbell",["Elbows at shoulder height, forearms hanging.","Rotate the weights up until forearms point to the ceiling.","Lower through the same path."]),
+ex("ytw","Prone Y-Raise",["shoulders","back"],"dumbbell",["Chest on an incline bench, light dumbbells hanging.","Raise your arms into a Y overhead.","Lower slowly — stay strict."]),
+ex("pushpress","Push Press",["shoulders","triceps","full-body"],"barbell",["Bar at your collarbones, slight knee dip.","Drive with the legs and press overhead.","Lower under control to the rack position."]),
+ex("spider","Spider Curl",["biceps"],"dumbbell",["Chest on an incline bench, arms hanging straight down.","Curl to full squeeze without moving the upper arms.","Lower to a full stretch."]),
+ex("inccurl","Incline Dumbbell Curl",["biceps"],"dumbbell",["Sit back on an incline bench, arms hanging.","Curl both dumbbells without shoulder movement.","Lower fully for a deep stretch."]),
+ex("ropehammer","Rope Hammer Curl",["biceps","forearms"],"cable",["Rope on a low pulley, neutral grip.","Curl to shoulder height keeping thumbs up.","Lower slowly under tension."]),
+ex("dragcurl","Drag Curl",["biceps"],"barbell",["Drag the bar up your torso, elbows sweeping back.","Squeeze at the top of your ribs.","Lower along the same path."]),
+ex("21s","Bicep 21s",["biceps"],"barbell",["7 reps bottom-to-half, 7 reps half-to-top.","Finish with 7 full-range curls.","That's one set — keep it strict."]),
+ex("kickbacktri","Triceps Kickback",["triceps"],"dumbbell",["Hinge forward, upper arm parallel to the floor.","Extend your forearm back to lockout.","Return only to 90° to keep tension."]),
+ex("benchdip","Bench Dip",["triceps","chest"],"bodyweight",["Hands on a bench behind you, legs extended.","Lower until elbows reach 90°.","Press back up — add a plate on your lap to progress."]),
+ex("jmpress","JM Press",["triceps","chest"],"barbell",["Close grip, lower the bar toward your chin.","Let elbows drift forward as you lower.","Extend back up, squeezing the triceps."]),
+ex("ropepush","Rope Pushdown",["triceps"],"cable",["Rope at chest height, elbows pinned.","Push down and split the rope at the bottom.","Return until forearms pass parallel."]),
+ex("bblunge","Barbell Lunge",["quads","glutes","hamstrings"],"barbell",["Bar on your upper back, step forward.","Lower your back knee toward the floor.","Push through the front heel back to standing."]),
+ex("revlunge","Reverse Lunge",["quads","glutes","hamstrings"],"dumbbell",["Step backward and lower your back knee.","Keep your front shin vertical.","Drive through the front heel to return."]),
+ex("latlunge","Lateral Lunge",["quads","glutes"],"dumbbell",["Step wide to one side, sitting into that hip.","Keep the other leg straight.","Push back to center; alternate sides."]),
+ex("curtsy","Curtsy Lunge",["glutes","quads"],"dumbbell",["Step one leg behind and across the other.","Lower until your front thigh is near parallel.","Drive up through the front heel."]),
+ex("smithlunge","Smith Machine Lunge",["quads","glutes"],"machine",["Bar on your upper back, one foot forward.","Lower the back knee toward the floor.","Press through the front heel; switch legs."]),
+ex("pistol","Pistol Squat",["quads","glutes","abs"],"bodyweight",["Stand on one leg, other leg extended forward.","Squat as deep as you can control.","Drive up without touching the free foot down."]),
+ex("sissy","Sissy Squat",["quads"],"bodyweight",["Heels raised, lean back as you bend your knees.","Lower with hips extended, knees traveling forward.","Return using your quads only."]),
+ex("nordic","Nordic Hamstring Curl",["hamstrings"],"bodyweight",["Kneel with ankles anchored.","Lower your torso forward as slowly as possible.","Catch yourself and push back up."]),
+ex("slrdl","Single-Leg Romanian Deadlift",["hamstrings","glutes"],"dumbbell",["Stand on one leg, dumbbell in the opposite hand.","Hinge until your torso is near parallel.","Drive the hip forward to stand; switch sides."]),
+ex("glutebridge","Glute Bridge",["glutes","hamstrings"],"bodyweight",["Lie with knees bent, feet flat.","Drive your hips up to full extension.","Squeeze for a beat, lower slowly."]),
+ex("pullthrough","Cable Pull-Through",["glutes","hamstrings"],"cable",["Face away from a low rope, hinge forward.","Drive your hips through to stand tall.","Let the rope pull you back into the hinge."]),
+ex("frogpump","Frog Pump",["glutes"],"bodyweight",["Lie down, soles of feet together, knees out.","Drive your hips up, squeezing hard.","Pump with short, controlled reps."]),
+ex("boxjump","Box Jump",["quads","glutes","full-body"],"other",["Stand a short step from the box.","Swing your arms and jump, landing softly.","Step down — don't jump down."]),
+ex("wallsit","Wall Sit",["quads"],"bodyweight",["Back flat on a wall, thighs parallel to the floor.","Hold the position, breathing steadily.","Keep knees over ankles."]),
+ex("donkeycalf","Donkey Calf Raise",["calves"],"machine",["Hinge forward with the pad on your hips.","Rise as high as possible onto your toes.","Lower into a deep stretch."]),
+ex("lpcalf","Leg Press Calf Raise",["calves"],"machine",["Balls of feet on the bottom edge of the platform.","Press through your toes to full extension.","Lower until your calves stretch."]),
+ex("crunch","Crunch",["abs"],"bodyweight",["Knees bent, hands by your temples.","Curl your shoulders off the floor.","Lower slowly — don't pull your neck."]),
+ex("bicycle","Bicycle Crunch",["abs"],"bodyweight",["Hands by your temples, legs raised.","Bring opposite elbow to opposite knee.","Alternate sides in a controlled rhythm."]),
+ex("legraise","Lying Leg Raise",["abs"],"bodyweight",["Lie flat, hands under your hips.","Raise straight legs to vertical.","Lower slowly without arching your back."]),
+ex("vup","V-Up",["abs"],"bodyweight",["Lie flat, arms overhead.","Fold up, touching hands to feet.","Lower back out with control."]),
+ex("hollow","Hollow Body Hold",["abs"],"bodyweight",["Press your lower back into the floor.","Raise shoulders and legs slightly off the ground.","Hold the banana shape, breathing steadily."]),
+ex("woodchop","Cable Woodchopper",["abs"],"cable",["High pulley, arms extended.","Rotate and pull diagonally across your body.","Control the return; work both sides."]),
+ex("pallof","Pallof Press",["abs"],"cable",["Cable at chest height, stand side-on.","Press the handle straight out and resist rotation.","Return slowly; switch sides."]),
+ex("kneeraise","Hanging Knee Raise",["abs"],"bodyweight",["Hang from a bar with straight arms.","Curl your knees to your chest.","Lower slowly without swinging."]),
+ex("deadbug","Dead Bug",["abs"],"bodyweight",["On your back, arms up, knees at 90°.","Lower opposite arm and leg toward the floor.","Return and alternate, back flat throughout."]),
+ex("swim","Swimming",["cardio","full-body"],"other",["Warm up with easy lengths.","Swim at your target effort, tracking time.","Cool down with slow laps."],"cardio"),
+ex("inclinewalk","Incline Treadmill Walk",["cardio","glutes","calves"],"machine",["Set a steep incline at walking pace.","Walk tall without holding the rails.","Track time and distance."],"cardio"),
+ex("sprints","Sprints",["cardio","full-body","quads"],"bodyweight",["Warm up thoroughly first.","Sprint hard for the target distance or time.","Walk back to recover between efforts."],"cardio"),
+ex("rowint","Rowing Intervals",["cardio","back","full-body"],"machine",["Row hard for the work interval.","Paddle easy to recover.","Repeat for the planned rounds."],"cardio"),
+ex("burpee","Burpee",["full-body","cardio"],"bodyweight",["Squat down, kick back to a plank.","Do a push-up, jump your feet in.","Explode up with a jump."],"cardio"),
+ex("cleanpress","Clean and Press",["full-body","shoulders","glutes"],"barbell",["Pull the bar from the floor to your shoulders in one motion.","Stand tall, then press overhead.","Lower with control and reset."]),
+ex("tgu","Turkish Get-Up",["full-body","abs","shoulders"],"kettlebell",["Press the bell up while lying down.","Stand up in stages, keeping the arm locked overhead.","Reverse the steps back to the floor."]),
+ex("ballslam","Medicine Ball Slam",["full-body","abs"],"other",["Raise the ball overhead on your toes.","Slam it into the floor with your whole body.","Catch the bounce and repeat."]),
 ];
 
 /* ── state ───────────────────────────────────────────────────────────── */
@@ -352,7 +435,72 @@ function streak(dates){if(!dates.length)return 0;
 function avgGap(dates){const d=[...new Set(dates.map(dayKey))].sort((a,b)=>a-b);
   return d.length<2?null:(d[d.length-1]-d[0])/864e5/(d.length-1);}
 
-/* ── toast ───────────────────────────────────────────────────────────── */
+/* ── personalization: splash + hype lines ────────────────────────────── */
+const SPLASH_LINES=[
+"no cap, today's a PR day 🔥","lock in. legend mode: ON 🔒","it's giving GAINS ✨",
+"main character energy loading… 🎬","your future self is watching 👀 make 'em proud",
+"less scroll, more swole 📵💪","POV: you're about to cook 🍳🔥","sweat now, slay later 💦✨",
+"the iron never lies, bestie 🤝","we don't skip leg day in this house 🦵",
+"built different (literally, you're building) 🧱","one more rep > one more excuse 🚫🧢",
+"today's forecast: 100% chance of gains ⛅💪","gym pass = main quest 🎮",
+"delulu is not the solulu — but reps are 💪","protein ✅ playlist ✅ let's gooo 🎧",
+"touch grass? nah, touch barbell 🏋️","W incoming. loading… ⏳🏆",
+"your only competition is yesterday's you 🪞","we stay silly but we stay strong 🤪💪",
+"heavy squats o'clock 🏋️","quiet grind, loud results 🤫📢",
+"be the gym rat you want to see in the world 🐀❤️","rise and grind, champ 🌅",
+"certified gym enjoyer moment ✅","slay the day, then slay the weights 🗡️✨",
+"gains don't ghost you like they do 💅","everything hurts but make it aesthetic 🎨💪",
+"rest day? never heard of her (jk recovery matters) 😌","dopamine? we lift for that 🧠⚡"];
+const HOME_LINES=[
+"{n}, you're built different 💪","go get it, {n} — future you says thanks 🙌",
+"{n} the type to finish every set 😤","small steps, big gains, {n} 📈",
+"consistency looks good on you, {n} ✨","another day, another W for {n} 🏆",
+"{n}, the weights missed you 🥺","stay hydrated and dangerous, {n} 💧😎",
+"you vs. you — and {n} always wins 🪞","PRs don't chase themselves, {n} 🏃💨",
+"it's a great day to be {n} 🔥","quiet grind, loud results, {n} 🤫📢",
+"{n} understood the assignment 📝✅","the grind chose you back, {n} 🤝",
+"strong looks good on you, {n} 💪✨","clock in, {n} — gains dept. is hiring 🕐"];
+/* random pick that never repeats the previous one (per key) */
+function pick(arr,key){
+  const last=+(localStorage.getItem(key)??-1);let i;
+  do{i=Math.floor(Math.random()*arr.length);}while(arr.length>1&&i===last);
+  localStorage.setItem(key,i);return arr[i];
+}
+const fname=()=>(S.settings.name||"").trim()||"champ";
+const HOME_LINE=()=>pickedHomeLine.replace(/\{n\}/g,fname());
+let pickedHomeLine="";
+
+function showSplash(){
+  const el=$("#splash");
+  const name=(S.settings.name||"").trim();
+  el.innerHTML=`<div class="logo">${I.dumb}</div>
+    ${name?`<p class="hi">yo ${esc(name)} 👋</p>`:""}
+    <p class="line">${esc(pick(SPLASH_LINES,"ft-lastsplash"))}</p>
+    <div class="bar"><i></i></div>`;
+  setTimeout(()=>{el.style.opacity="0";setTimeout(()=>el.remove(),450);},1800);
+}
+function askName(){
+  const div=document.createElement("div");
+  div.className="overlay";div.id="nameask";div.style.zIndex="90";
+  div.innerHTML=`<div class="sheet" role="dialog" aria-modal="true" style="max-height:none">
+    <div class="bd" style="padding-top:28px;text-align:center">
+      <p style="font-size:40px;margin-bottom:8px">💪</p>
+      <h2 style="font-size:24px;margin-bottom:6px">welcome to the grind</h2>
+      <p class="muted" style="margin-bottom:20px">what should we call you? (so the hype hits different)</p>
+      <input class="input" id="namein" placeholder="your name" autocomplete="given-name"
+        style="text-align:center;font-weight:600;margin-bottom:14px" maxlength="24"
+        onkeydown="if(event.key==='Enter')saveName()">
+      <button class="btn primary lg" onclick="saveName()" style="margin-bottom:10px">let's gooo 🚀</button>
+      <button class="muted" style="font-size:13px" onclick="saveName(true)">skip for now</button>
+    </div></div>`;
+  document.body.appendChild(div);
+}
+function saveName(skip){
+  const v=skip?"":($("#namein").value||"").trim();
+  S.settings.name=v;save();
+  localStorage.setItem("ft-nameasked","1");
+  $("#nameask")?.remove();render();
+}
 let toastTimer,toastUndo=null;
 function toast(msg,undo){
   clearTimeout(toastTimer);toastUndo=undo||null;
@@ -408,7 +556,10 @@ function home(){
       <p class="muted" style="margin:4px 0 14px">${plan?"Nothing scheduled — you can still start a free workout.":"Start an empty workout or pick a template in Train."}</p>
       <button class="btn ${plan?"soft":"primary"} lg" onclick="startEmpty()">＋ Quick Start</button></div>`;
   }
-  return `<p class="sub" style="padding-top:28px">${date}</p><h1 style="padding-top:0">${greet}</h1>
+  const nm=(S.settings.name||"").trim();
+  return `<p class="sub" style="padding-top:28px">${date}</p>
+  <h1 style="padding:0">${greet}${nm?", "+esc(nm):""}</h1>
+  <p class="muted" style="font-size:15px;margin:2px 0 16px">${esc(HOME_LINE())}</p>
   ${hero}
   <div class="statgrid" style="margin-top:12px">
     <div class="card"><p class="muted">🔥 Streak</p><p class="big">${st}<span style="font-size:14px;color:var(--fg2);font-weight:500"> ${st===1?"day":"days"}</span></p></div>
@@ -723,7 +874,7 @@ function exListHTML(list){
       <span class="muted trunc" style="display:block">${e.muscles.map(m=>MUSCLES[m]).join(" · ")} — ${EQUIP[e.equipment]}</span></button>
     <button style="padding:16px;font-size:17px;color:${e.fav?"var(--danger)":"var(--fg3)"}" onclick="favEx('${e.id}')" aria-label="Favorite">${e.fav?"♥":"♡"}</button>
   </div>`;
-  return groupedHTML(list,row);
+  return groupedHTML(list,row,true);
 }
 function renderList(){
   const q=UI.q.trim().toLowerCase();
@@ -736,9 +887,11 @@ function renderList(){
   const el=$("#exlist");if(el)el.innerHTML=exListHTML(list);
 }
 function favEx(id){const e=E(id);e.fav=!e.fav;save();render();}
-function editEx(id){
+function editEx(id,presetMuscle){
   const e=id?E(id):null;
-  UI.draft=e?structuredClone(e):{id:uid(),name:"",category:"strength",muscles:[],equipment:"barbell",instructions:[],videoUrl:"",custom:true,fav:false};
+  UI.draft=e?structuredClone(e):{id:uid(),name:"",category:presetMuscle==="cardio"?"cardio":"strength",
+    muscles:presetMuscle?[presetMuscle]:[],equipment:presetMuscle==="cardio"?"machine":"barbell",
+    instructions:[],videoUrl:"",custom:true,fav:false};
   UI.draft._isNew=!e;openSheet({type:"exform"});
 }
 function delEx(id){const i=S.exercises.findIndex(x=>x.id===id);const[e]=S.exercises.splice(i,1);
@@ -875,6 +1028,8 @@ function settings(){
   return `<h1>Settings</h1>
   <p class="sec" style="margin-top:0">Preferences</p>
   <div class="card" style="padding:0">
+    <div class="setline"><span><b style="font-size:15px">Your name</b><p class="muted" style="font-size:12px">Used for the hype messages</p></span>
+      <input class="input" style="width:150px;height:38px" value="${esc(st.name||"")}" placeholder="champ" maxlength="24" oninput="S.settings.name=this.value;save()"></div>
     <div class="setline"><b style="font-size:15px">Weight unit</b>
       <div class="seg" style="width:140px">${["kg","lbs"].map(u=>`<button class="${st.unit===u?"on":""}" onclick="S.settings.unit='${u}';save();render()">${u}</button>`).join("")}</div></div>
     <div class="setline"><b style="font-size:15px">Theme</b>
@@ -1171,7 +1326,12 @@ addEventListener("keydown",e=>{
   if(e.key==="Escape"&&UI.sheet)closeSheet();
 });
 
+/* ── boot ── */
+applyTheme();
+pickedHomeLine=pick(HOME_LINES,"ft-lasthome");
+showSplash();
 render();
+if(!S.settings.name&&!localStorage.getItem("ft-nameasked"))askName();
 </script>
 </body>
 </html>
