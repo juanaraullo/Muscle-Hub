@@ -192,6 +192,20 @@ gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2
 /* ── seed exercises (original instruction text) ──────────────────────── */
 const MUSCLES={chest:"Chest",back:"Back",shoulders:"Shoulders",biceps:"Biceps",triceps:"Triceps",forearms:"Forearms",quads:"Quads",hamstrings:"Hamstrings",glutes:"Glutes",calves:"Calves",abs:"Abs","full-body":"Full Body",cardio:"Cardio"};
 const EQUIP={barbell:"Barbell",dumbbell:"Dumbbell",machine:"Machine",cable:"Cable",bodyweight:"Bodyweight",kettlebell:"Kettlebell",band:"Band",other:"Other"};
+/* body-part sections shown as headers in the library & picker (grouped by an
+   exercise's FIRST listed muscle) */
+const GROUP_OF={chest:"Chest",back:"Back",shoulders:"Shoulders",biceps:"Arms",triceps:"Arms",forearms:"Arms",
+  quads:"Legs",hamstrings:"Legs",glutes:"Legs",calves:"Legs",abs:"Core",cardio:"Cardio","full-body":"Other"};
+const GROUP_ORDER=["Chest","Back","Shoulders","Arms","Legs","Core","Cardio","Other"];
+/* Render a list of exercises split into labelled sections. `row` renders one item. */
+function groupedHTML(list,row){
+  const buckets={};
+  for(const e of list){const g=GROUP_OF[e.muscles[0]]||"Other";(buckets[g]=buckets[g]||[]).push(e);}
+  return GROUP_ORDER.filter(g=>buckets[g]).map(g=>{
+    const items=buckets[g].sort((a,b)=>(b.fav-a.fav)||a.name.localeCompare(b.name));
+    return `<p class="sec" style="margin:14px 4px 8px">${g.toUpperCase()} <span style="color:var(--fg3);font-weight:500">· ${items.length}</span></p>`+items.map(row).join("");
+  }).join("")||"";
+}
 const ex=(id,name,m,eq,ins,cat)=>({id:"b-"+id,name,category:cat||"strength",muscles:m,equipment:eq,instructions:ins,videoUrl:"",custom:false,fav:false});
 const SEED=[
 ex("bench","Bench Press",["chest","triceps","shoulders"],"barbell",["Lie on the bench with feet planted and shoulder blades pulled together.","Grip the bar slightly wider than shoulder width and unrack it over your chest.","Lower the bar under control to your mid-chest, elbows around 45°.","Press back up to full lockout without bouncing off the chest."]),
@@ -235,6 +249,64 @@ ex("run","Running",["cardio","full-body"],"bodyweight",["Warm up with 5 minutes 
 ex("rower","Rowing Machine",["cardio","back","full-body"],"machine",["Drive legs first, then lean back and pull to your ribs.","Return arms–body–legs in that order.","Keep a steady stroke rate."],"cardio"),
 ex("cycle","Cycling",["cardio","quads"],"machine",["Saddle so your knee stays slightly bent at the bottom.","Ride at target effort, tracking time and distance."],"cardio"),
 ex("kbswing","Kettlebell Swing",["glutes","hamstrings","full-body"],"kettlebell",["Hinge and hike the bell between your legs.","Snap your hips to swing it to chest height.","Let it fall into the next hinge — arms are hooks."]),
+/* ── commercial gym machines & popular variants ── */
+ex("chestpress","Chest Press Machine",["chest","triceps"],"machine",["Set the seat so handles line up with mid-chest.","Press forward to full extension without locking hard.","Return slowly until you feel a chest stretch."]),
+ex("pecdeck","Pec Deck Fly",["chest"],"machine",["Sit with forearms or hands on the pads, elbows slightly bent.","Squeeze the pads together in front of your chest.","Open slowly to a comfortable stretch."]),
+ex("smithbench","Smith Machine Bench Press",["chest","triceps","shoulders"],"machine",["Set the bench so the bar tracks to mid-chest.","Unrack, lower under control to your chest.","Press to lockout and re-hook safely."]),
+ex("incbb","Incline Barbell Press",["chest","shoulders","triceps"],"barbell",["Set the bench to 30–45° and grip just outside shoulders.","Lower the bar to your upper chest.","Press up and slightly back to lockout."]),
+ex("decpress","Decline Bench Press",["chest","triceps"],"barbell",["Lie on a decline bench, feet secured.","Lower the bar to your lower chest.","Press to full extension."]),
+ex("asstdip","Assisted Dip Machine",["chest","triceps"],"machine",["Kneel on the assist pad, grip the handles.","Lower until shoulders are just below elbows.","Press back up — reduce assistance over time."]),
+ex("tbarrow","T-Bar Row",["back","biceps"],"barbell",["Straddle the bar, hinge with a flat back.","Row the handles to your chest.","Lower slowly without your torso rising."]),
+ex("csrow","Chest-Supported Row Machine",["back","biceps"],"machine",["Chest on the pad, arms extended to the handles.","Row back, squeezing your shoulder blades.","Return to a full stretch."]),
+ex("asstpull","Assisted Pull-Up Machine",["back","biceps"],"machine",["Kneel on the pad with a wide overhand grip.","Pull your chest toward the bar.","Lower to a dead hang — reduce assistance over time."]),
+ex("straightpd","Straight-Arm Pulldown",["back"],"cable",["High cable, arms straight, slight forward lean.","Sweep the bar down to your thighs with straight arms.","Control the return overhead."]),
+ex("backext","Back Extension",["back","glutes","hamstrings"],"machine",["Hips on the pad, ankles locked in.","Hinge down, then raise your torso to neutral.","Squeeze your glutes at the top; don't hyperextend."]),
+ex("highrow","Machine High Row",["back","biceps"],"machine",["Grip the high handles, chest against the pad.","Pull down and back toward your ribs.","Return slowly to a full lat stretch."]),
+ex("shrug","Barbell Shrug",["back","forearms"],"barbell",["Hold the bar at hip level, arms straight.","Shrug your shoulders straight up toward your ears.","Pause, then lower fully."]),
+ex("rackpull","Rack Pull",["back","glutes","hamstrings"],"barbell",["Set the bar at knee height in a rack.","Hinge, grip, and stand tall driving hips forward.","Lower under control to the pins."]),
+ex("shpressm","Shoulder Press Machine",["shoulders","triceps"],"machine",["Seat set so handles start at shoulder height.","Press overhead to extension.","Lower under control to the start."]),
+ex("revpec","Reverse Pec Deck",["shoulders","back"],"machine",["Face the pad, arms forward on the handles.","Sweep your arms back in a wide arc.","Squeeze the rear delts, return slowly."]),
+ex("cablelat","Cable Lateral Raise",["shoulders"],"cable",["Low pulley at your side, handle in the far hand.","Raise your arm out to shoulder height.","Lower slowly against the cable."]),
+ex("arnold","Arnold Press",["shoulders","triceps"],"dumbbell",["Start with dumbbells at shoulders, palms facing you.","Press overhead while rotating palms forward.","Reverse the rotation on the way down."]),
+ex("upright","Upright Row",["shoulders","back"],"barbell",["Grip the bar shoulder-width at hip level.","Pull straight up to chest height, elbows leading.","Lower under control."]),
+ex("frontraise","Front Raise",["shoulders"],"dumbbell",["Dumbbells at your thighs, palms down.","Raise one or both arms to shoulder height.","Lower slowly without swinging."]),
+ex("preacher","Preacher Curl",["biceps","forearms"],"barbell",["Upper arms flat on the preacher pad.","Curl the bar to shoulder height.","Lower to full extension without bouncing."]),
+ex("cablecurl","Cable Curl",["biceps","forearms"],"cable",["Low pulley, underhand grip, elbows at your sides.","Curl to shoulder height under constant tension.","Lower fully with control."]),
+ex("ezcurl","EZ-Bar Curl",["biceps","forearms"],"barbell",["Grip the angled bar at the inner bends.","Curl to shoulder height, elbows pinned.","Lower fully."]),
+ex("machcurl","Machine Bicep Curl",["biceps"],"machine",["Upper arms on the pad, grip the handles.","Curl to full squeeze.","Lower slowly to extension."]),
+ex("conccurl","Concentration Curl",["biceps"],"dumbbell",["Seated, elbow braced against your inner thigh.","Curl the dumbbell to your shoulder.","Lower slowly — no swinging."]),
+ex("cgbench","Close-Grip Bench Press",["triceps","chest"],"barbell",["Grip the bar just inside shoulder width.","Lower to your lower chest, elbows tucked.","Press to lockout, squeezing the triceps."]),
+ex("cableoh","Cable Overhead Extension",["triceps"],"cable",["Face away from a low pulley, rope behind your head.","Extend your arms overhead to lockout.","Lower behind your head with control."]),
+ex("machtri","Machine Triceps Extension",["triceps"],"machine",["Upper arms on the pad, grip the handles.","Extend to full lockout.","Return until forearms pass parallel."]),
+ex("diamond","Diamond Push-Up",["triceps","chest"],"bodyweight",["Hands together under your chest, thumbs and index fingers touching.","Lower with elbows tracking back.","Press up keeping your body straight."]),
+ex("wristcurl","Wrist Curl",["forearms"],"dumbbell",["Forearms on your thighs or a bench, palms up.","Curl the weight with only your wrists.","Lower to a full stretch."]),
+ex("revcurl","Reverse Curl",["forearms","biceps"],"barbell",["Overhand grip at hip level.","Curl to shoulder height keeping wrists straight.","Lower slowly."]),
+ex("hack","Hack Squat Machine",["quads","glutes"],"machine",["Back against the pad, feet shoulder-width on the platform.","Lower until thighs reach parallel or below.","Drive up through mid-foot without locking hard."]),
+ex("smithsquat","Smith Machine Squat",["quads","glutes","hamstrings"],"machine",["Bar on your upper back, feet slightly forward.","Squat to parallel or below.","Drive up and re-hook safely."]),
+ex("frontsquat","Front Squat",["quads","glutes","abs"],"barbell",["Bar racked on your front delts, elbows high.","Squat down keeping your torso upright.","Drive up through mid-foot."]),
+ex("bulgarian","Bulgarian Split Squat",["quads","glutes","hamstrings"],"dumbbell",["Rear foot on a bench, front foot forward.","Lower your back knee toward the floor.","Push through the front heel to stand."]),
+ex("seatedcurl","Seated Leg Curl",["hamstrings"],"machine",["Pad above your heels, thighs locked in.","Curl your heels down and under.","Return slowly to extension."]),
+ex("adduction","Hip Adduction Machine",["glutes","quads"],"machine",["Sit with pads inside your knees.","Squeeze your legs together.","Open slowly against the resistance."]),
+ex("abduction","Hip Abduction Machine",["glutes"],"machine",["Sit with pads outside your knees.","Push your legs apart as far as possible.","Return slowly."]),
+ex("kickback","Glute Kickback Machine",["glutes","hamstrings"],"machine",["One foot on the platform, chest on the pad.","Drive the platform back and up with your heel.","Squeeze at the top, return with control."]),
+ex("seatedcalf","Seated Calf Raise",["calves"],"machine",["Pads on your knees, balls of feet on the platform.","Rise onto your toes as high as possible.","Lower to a deep stretch."]),
+ex("sumo","Sumo Deadlift",["glutes","hamstrings","quads","back"],"barbell",["Wide stance, toes out, grip inside your knees.","Brace and stand tall, driving knees out.","Lower under control."]),
+ex("goodmorning","Good Morning",["hamstrings","glutes","back"],"barbell",["Bar on your upper back, soft knees.","Hinge at the hips until you feel a hamstring stretch.","Drive your hips forward to stand."]),
+ex("stepup","Dumbbell Step-Up",["quads","glutes"],"dumbbell",["Dumbbells at your sides, one foot on a box.","Drive through the top heel to stand on the box.","Lower slowly and repeat."]),
+ex("abmachine","Ab Crunch Machine",["abs"],"machine",["Sit with the pads at your chest, grip the handles.","Crunch forward, flexing your spine.","Return slowly, keeping tension."]),
+ex("torso","Torso Rotation Machine",["abs"],"machine",["Sit tall with the pads locked at your chest.","Rotate to one side under control.","Return to center; work both sides."]),
+ex("declinesit","Decline Situp",["abs"],"bodyweight",["Ankles locked on a decline bench.","Curl your torso up toward your knees.","Lower one vertebra at a time."]),
+ex("sideplank","Side Plank",["abs"],"bodyweight",["Stack your feet, forearm under your shoulder.","Lift your hips into a straight line.","Hold, breathing steadily; switch sides."]),
+ex("mtclimber","Mountain Climbers",["abs","cardio"],"bodyweight",["High plank, core braced.","Drive your knees to your chest alternately.","Keep hips level and pace steady."]),
+ex("abwheel","Ab Wheel Rollout",["abs"],"other",["Kneel with hands on the wheel.","Roll forward as far as you can control.","Pull back with your abs, not your arms."]),
+ex("treadmill","Treadmill",["cardio","full-body"],"machine",["Start with a walking warm-up.","Run or incline-walk at your target effort.","Cool down for a few minutes."],"cardio"),
+ex("elliptical","Elliptical",["cardio","full-body"],"machine",["Set resistance to your target effort.","Drive through both the pedals and handles.","Keep a steady cadence."],"cardio"),
+ex("stairs","Stair Climber",["cardio","glutes","quads"],"machine",["Step at a pace you can sustain.","Stand tall — avoid leaning on the rails.","Increase speed or duration over time."],"cardio"),
+ex("assault","Assault Bike",["cardio","full-body"],"machine",["Push and pull the handles while pedaling.","Work in intervals or steady state.","Track calories or time."],"cardio"),
+ex("jumprope","Jump Rope",["cardio","calves"],"other",["Elbows close, spin from the wrists.","Jump just high enough to clear the rope.","Build up duration over sessions."],"cardio"),
+ex("farmer","Farmer's Carry",["full-body","forearms","abs"],"dumbbell",["Heavy dumbbells at your sides, chest tall.","Walk with short, quick steps.","Keep your shoulders back the whole way."]),
+ex("sled","Sled Push",["full-body","quads","glutes"],"other",["Grip the poles with arms extended.","Drive the sled forward with powerful steps.","Keep your back flat and core braced."]),
+ex("battlerope","Battle Ropes",["full-body","shoulders","cardio"],"other",["Rope ends in hand, athletic stance.","Make alternating or double waves.","Work in short, hard intervals."],"cardio"),
 ];
 
 /* ── state ───────────────────────────────────────────────────────────── */
@@ -244,6 +316,10 @@ const DEFAULT={settings:{unit:"kg",theme:"system",rest:120,autoRest:true},
 let S;
 try{S=Object.assign({},DEFAULT,JSON.parse(localStorage.getItem(KEY)||"{}"));}catch(e){S=structuredClone(DEFAULT);}
 if(!S.exercises||!S.exercises.length)S.exercises=SEED;
+else{ /* merge any newly added built-ins into existing saves */
+  const have=new Set(S.exercises.map(e=>e.id));
+  SEED.forEach(e=>{if(!have.has(e.id))S.exercises.push(e);});
+}
 const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
 const E=id=>S.exercises.find(e=>e.id===id);
 /* transient UI state (not persisted) */
@@ -364,6 +440,28 @@ function prevPerf(exId){
     if(m){const sets=m.sets.filter(s=>s.done);if(sets.length)return sets;}
   }return null;}
 
+/* ── progressive overload (double progression, 8–12 rep range) ────────
+   If every working set last time hit 12+ reps → add one weight increment
+   and reset to 8 reps. Otherwise → same weight, add one rep to the worst
+   set. Bodyweight movements just add a rep. */
+function suggestNext(exId){
+  const info=E(exId);if(!info||info.category==="cardio")return null;
+  const prev=prevPerf(exId);if(!prev)return null;
+  const working=prev.filter(s=>s.type!=="warmup"&&(s.reps||0)>0);
+  if(!working.length)return null;
+  const minReps=Math.min(...working.map(s=>s.reps||0));
+  const topW=Math.max(...working.map(s=>s.weight||0));
+  if(!topW)return {weight:null,reps:minReps+1,sets:working.length,mode:"rep"};
+  if(minReps>=12)return {weight:topW+store(wstep()),reps:8,sets:working.length,mode:"weight"};
+  return {weight:topW,reps:minReps+1,sets:working.length,mode:"rep"};
+}
+function applyTarget(ei){
+  const e=S.session.workout.exercises[ei];
+  const sug=suggestNext(e.exerciseId);if(!sug)return;
+  e.sets=Array.from({length:sug.sets},()=>({...newSet(),weight:sug.weight,reps:sug.reps}));
+  save();render();
+}
+
 function session(){
   if(UI.summary)return summaryView();
   const w=S.session.workout;
@@ -395,7 +493,10 @@ function exerciseCard(e,ei){
       <button class="icobtn" onclick="toggleNotes('${e.id}')" aria-label="Notes">📝</button>
       <button class="icobtn" onclick="removeEx(${ei})" aria-label="Remove exercise">🗑</button>
     </div>
-    ${prevTxt?`<button class="muted" style="display:block;margin-bottom:8px;text-align:left" onclick="applyPrev(${ei})">🕐 Last: ${esc(prevTxt)}${prev.length>3?"…":""} <b style="color:var(--accent)">Apply</b></button>`:""}
+    ${prevTxt?`<button class="muted" style="display:block;margin-bottom:6px;text-align:left" onclick="applyPrev(${ei})">🕐 Last: ${esc(prevTxt)}${prev.length>3?"…":""} <b style="color:var(--accent)">Apply</b></button>`:""}
+    ${(()=>{const sug=suggestNext(e.exerciseId);if(!sug||cardio)return "";
+      const t=sug.weight?`${fmtW(sug.weight)} × ${sug.reps}`:`${sug.reps} reps`;
+      return `<button class="muted" style="display:block;margin-bottom:8px;text-align:left" onclick="applyTarget(${ei})">⬆ Next target: <b style="color:var(--fg)">${t}</b> <span style="font-size:11px;font-weight:700;color:${sug.mode==="weight"?"var(--success)":"var(--warning)"};background:${sug.mode==="weight"?"var(--success-soft)":"rgba(255,159,10,.15)"};border-radius:99px;padding:2px 8px">${sug.mode==="weight"?"ADD WEIGHT":"ADD A REP"}</span> <b style="color:var(--accent)">Apply</b></button>`;})()}
     ${notesOpen?`<textarea class="input" style="height:60px;padding:10px 14px;resize:none;margin-bottom:8px" placeholder="Notes for this exercise…" oninput="S.session.workout.exercises[${ei}].notes=this.value;save()">${esc(e.notes)}</textarea>`:""}
     <div class="cols"><span style="width:28px">Set</span><span style="flex:1">${cardio?"Minutes":"Weight ("+S.settings.unit+")"}</span><span style="flex:1">${cardio?"Km":"Reps"}</span><span style="width:36px">RPE</span><span style="width:28px">✓</span></div>
     ${e.sets.map((s,si)=>setRow(s,si,ei,cardio)).join("")}
@@ -526,7 +627,13 @@ function train(){
       <button class="btn plain sm" onclick="dupTpl('${t.id}')">⧉</button>
       <button class="btn danger sm" onclick="delTpl('${t.id}')">🗑</button>
     </div></div>`).join("")
-  :`<div class="card empty"><div class="ico">📋</div><p class="t">No templates yet</p><p class="s">Build a workout once, start it any day.</p></div>`}
+  :`<div class="card empty"><div class="ico">📋</div><p class="t">No templates yet</p><p class="s">Build a workout once, or add a popular program below.</p></div>`}
+  <p class="sec">Popular programs</p>
+  ${STARTERS.map(st=>`<div class="card" style="margin-bottom:12px">
+    <b style="font-size:16px">${st.name}</b>
+    <p class="muted" style="margin:2px 0 10px">${st.desc}</p>
+    <button class="btn soft sm" onclick="addStarter('${st.key}')">＋ Add ${st.templates.length} workouts + plan</button>
+  </div>`).join("")}
   <p class="sec">Training plans</p>
   <button class="btn soft lg" style="margin-bottom:12px" onclick="editPlan(null)">＋ New Training Plan</button>
   ${S.plans.length?S.plans.map(p=>`<div class="card" style="margin-bottom:12px;${p.active?"border:2px solid var(--accent)":""}">
@@ -538,6 +645,37 @@ function train(){
       <button class="btn danger sm" onclick="delPlan('${p.id}')">🗑</button>
     </div></div>`).join("")
   :`<div class="card empty"><div class="ico">🗓</div><p class="t">No plans yet</p><p class="s">Plans schedule templates across the week — the dashboard shows what's next.</p></div>`}`;
+}
+/* ── popular starter programs (one tap installs templates + a plan) ──── */
+const STARTERS=[
+ {key:"ppl",name:"PPL Split",desc:"Push / Pull / Legs, 6 days a week — the classic hypertrophy split.",
+  templates:[
+   ["Push Day",[["b-bench",4,"6-10",150],["b-incdb",3,"8-12",120],["b-ohp",3,"8-12",120],["b-latraise",3,"12-15",90],["b-pushdown",3,"10-15",90],["b-ohext",3,"10-15",90]]],
+   ["Pull Day",[["b-dead",3,"5-8",180],["b-latpd",3,"8-12",120],["b-cablerow",3,"8-12",120],["b-facepull",3,"12-15",90],["b-bbcurl",3,"8-12",90],["b-hammer",3,"10-15",90]]],
+   ["Leg Day",[["b-squat",4,"6-10",180],["b-legpress",3,"10-12",120],["b-rdl",3,"8-12",150],["b-legcurl",3,"10-15",90],["b-legext",3,"12-15",90],["b-calf",4,"12-20",60]]]],
+  week:[0,1,2,0,1,2,null]},
+ {key:"ul4",name:"Upper / Lower 4-Day",desc:"Two upper and two lower days — strength and size with recovery built in.",
+  templates:[
+   ["Upper A",[["b-bench",4,"6-10",150],["b-bbrow",4,"6-10",150],["b-ohp",3,"8-12",120],["b-latpd",3,"8-12",120],["b-bbcurl",3,"8-12",90],["b-pushdown",3,"10-15",90]]],
+   ["Lower A",[["b-squat",4,"6-10",180],["b-rdl",3,"8-12",150],["b-legpress",3,"10-12",120],["b-legcurl",3,"10-15",90],["b-calf",4,"12-20",60]]],
+   ["Upper B",[["b-incbb",4,"6-10",150],["b-pullup",4,"6-10",150],["b-dbpress",3,"8-12",120],["b-cablerow",3,"8-12",120],["b-hammer",3,"10-15",90],["b-skull",3,"10-15",90]]],
+   ["Lower B",[["b-dead",3,"5-8",180],["b-lunge",3,"10-12",120],["b-legext",3,"12-15",90],["b-hipthrust",3,"8-12",120],["b-seatedcalf",4,"12-20",60]]]],
+  week:[0,1,null,2,3,null,null]},
+ {key:"fb3",name:"Full Body 3-Day",desc:"Three balanced sessions a week — perfect for beginners or busy weeks.",
+  templates:[
+   ["Full Body A",[["b-squat",3,"6-10",180],["b-bench",3,"6-10",150],["b-bbrow",3,"8-12",120],["b-plank",3,"30-60s",60]]],
+   ["Full Body B",[["b-dead",3,"5-8",180],["b-ohp",3,"8-12",120],["b-latpd",3,"8-12",120],["b-dbcurl",3,"10-15",90]]],
+   ["Full Body C",[["b-legpress",3,"10-12",120],["b-incdb",3,"8-12",120],["b-cablerow",3,"8-12",120],["b-situp",3,"12-20",60]]]],
+  week:[0,null,1,null,2,null,null]},
+];
+function addStarter(key){
+  const st=STARTERS.find(s=>s.key===key);if(!st)return;
+  const tplIds=st.templates.map(([name,items])=>{
+    const t={id:uid(),name,items:items.map(([exId,sets,reps,rest])=>({id:uid(),exerciseId:exId,sets,reps,restSec:rest}))};
+    S.templates.push(t);return t.id;});
+  S.plans.push({id:uid(),name:st.name,active:false,startDate:Date.now(),
+    weeks:[{days:st.week.map((t,i)=>({weekday:i,templateId:t===null?null:tplIds[t]}))}]});
+  save();render();toast(`${st.name} added — ${st.templates.length} workouts + plan`);
 }
 function editTpl(id){
   const t=id?S.templates.find(x=>x.id===id):null;
@@ -579,12 +717,13 @@ function exLib(){
 }
 function exListHTML(list){
   if(!list.length)return `<div class="card empty"><div class="ico">🔍</div><p class="t">No exercises found</p><p class="s">Try another search, or create a custom exercise.</p></div>`;
-  return list.map(e=>`<div class="card row" style="padding:0;margin-bottom:8px;overflow:hidden">
+  const row=e=>`<div class="card row" style="padding:0;margin-bottom:8px;overflow:hidden">
     <button class="grow" style="text-align:left;padding:14px 0 14px 16px" onclick="openSheet({type:'exdetail',id:'${e.id}'})">
       <b class="trunc" style="display:block">${esc(e.name)}${e.custom?' <span style="font-size:10px;font-weight:800;color:var(--accent);background:var(--accent-soft);border-radius:99px;padding:2px 8px">CUSTOM</span>':""}</b>
       <span class="muted trunc" style="display:block">${e.muscles.map(m=>MUSCLES[m]).join(" · ")} — ${EQUIP[e.equipment]}</span></button>
     <button style="padding:16px;font-size:17px;color:${e.fav?"var(--danger)":"var(--fg3)"}" onclick="favEx('${e.id}')" aria-label="Favorite">${e.fav?"♥":"♡"}</button>
-  </div>`).join("");
+  </div>`;
+  return groupedHTML(list,row);
 }
 function renderList(){
   const q=UI.q.trim().toLowerCase();
@@ -848,23 +987,29 @@ function saveEx(){
   if(i>=0)S.exercises[i]=d;else S.exercises.push(d);
   save();closeSheet();render();
 }
-/* exercise picker (session + template) */
+/* exercise picker (session + template).
+   The search field re-renders ONLY #pickerlist below it — never itself —
+   so the keyboard/focus is preserved while typing. */
 function openPicker(target){UI.picker=new Set();UI.pickerQ="";openSheet({type:"picker",target});}
 function shPicker(){
-  const q=(UI.pickerQ||"").toLowerCase();
-  const list=S.exercises.filter(e=>!q||e.name.toLowerCase().includes(q)||e.muscles.some(m=>MUSCLES[m].toLowerCase().includes(q))||EQUIP[e.equipment].toLowerCase().includes(q))
-    .sort((a,b)=>(b.fav-a.fav)||a.name.localeCompare(b.name));
   return {title:"Add Exercises",html:`
     <input class="input" type="search" placeholder="Search exercises…" value="${esc(UI.pickerQ||"")}"
-      oninput="UI.pickerQ=this.value;renderSheet();this.focus();this.setSelectionRange(this.value.length,this.value.length)" style="margin-bottom:10px">
-    ${list.map(e=>{const on=UI.picker.has(e.id);
-      return `<button class="row" style="width:100%;text-align:left;padding:10px 12px;border-radius:14px;background:${on?"var(--accent-soft)":"var(--elev)"};margin-bottom:6px" onclick="togglePick('${e.id}')">
-      <span style="width:24px;height:24px;border-radius:99px;border:2px solid ${on?"var(--accent)":"var(--sep)"};background:${on?"var(--accent)":"transparent"};color:#fff;display:flex;align-items:center;justify-content:center;flex:none;font-size:13px">${on?"✓":""}</span>
-      <span class="grow"><b class="trunc" style="display:block;font-size:14px">${e.fav?"♥ ":""}${esc(e.name)}</b>
-      <span class="muted trunc" style="display:block;font-size:12px">${e.muscles.map(m=>MUSCLES[m]).join(" · ")}</span></span></button>`;}).join("")}
-    <div style="position:sticky;bottom:0;padding-top:10px">${UI.picker.size?`<button class="btn primary lg" onclick="confirmPick()">Add ${UI.picker.size} exercise${UI.picker.size>1?"s":""}</button>`:""}</div>`};
+      oninput="UI.pickerQ=this.value;renderPickerList()" style="margin-bottom:10px" aria-label="Search exercises">
+    <div id="pickerlist">${pickerListHTML()}</div>`};
 }
-function togglePick(id){UI.picker.has(id)?UI.picker.delete(id):UI.picker.add(id);renderSheet();}
+function pickerListHTML(){
+  const q=(UI.pickerQ||"").toLowerCase();
+  const list=S.exercises.filter(e=>!q||e.name.toLowerCase().includes(q)||e.muscles.some(m=>MUSCLES[m].toLowerCase().includes(q))||EQUIP[e.equipment].toLowerCase().includes(q));
+  const row=e=>{const on=UI.picker.has(e.id);
+    return `<button class="row" style="width:100%;text-align:left;padding:10px 12px;border-radius:14px;background:${on?"var(--accent-soft)":"var(--elev)"};margin-bottom:6px" onclick="togglePick('${e.id}')">
+    <span style="width:24px;height:24px;border-radius:99px;border:2px solid ${on?"var(--accent)":"var(--sep)"};background:${on?"var(--accent)":"transparent"};color:#fff;display:flex;align-items:center;justify-content:center;flex:none;font-size:13px">${on?"✓":""}</span>
+    <span class="grow"><b class="trunc" style="display:block;font-size:14px">${e.fav?"♥ ":""}${esc(e.name)}</b>
+    <span class="muted trunc" style="display:block;font-size:12px">${e.muscles.map(m=>MUSCLES[m]).join(" · ")}</span></span></button>`;};
+  return groupedHTML(list,row)+
+    `<div style="position:sticky;bottom:0;padding-top:10px">${UI.picker.size?`<button class="btn primary lg" onclick="confirmPick()">Add ${UI.picker.size} exercise${UI.picker.size>1?"s":""}</button>`:""}</div>`;
+}
+function renderPickerList(){const el=$("#pickerlist");if(el)el.innerHTML=pickerListHTML();}
+function togglePick(id){UI.picker.has(id)?UI.picker.delete(id):UI.picker.add(id);renderPickerList();}
 function confirmPick(){
   const ids=[...UI.picker];
   if(UI.sheet.target==="session"){
