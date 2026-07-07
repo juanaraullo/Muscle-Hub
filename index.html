@@ -214,16 +214,24 @@ const GROUP_OF={chest:"Chest",back:"Back",shoulders:"Shoulders",biceps:"Arms",tr
 const GROUP_ORDER=["Chest","Back","Shoulders","Arms","Legs","Core","Cardio","Other"];
 /* default muscle used when creating a custom exercise from a group header */
 const GROUP_ADD={Chest:"chest",Back:"back",Shoulders:"shoulders",Arms:"biceps",Legs:"quads",Core:"abs",Cardio:"cardio",Other:"full-body"};
+const exGroup=e=>GROUP_OF[e.muscles[0]]||"Other";
+/* One lowercase haystack per exercise: name, muscles, equipment, AND the
+   body-part group names — so searching "legs" matches every leg exercise. */
+function exSearchStr(e){
+  const groups=[...new Set(e.muscles.map(m=>GROUP_OF[m]).filter(Boolean))];
+  return `${e.name} ${e.muscles.map(m=>MUSCLES[m]).join(" ")} ${EQUIP[e.equipment]} ${groups.join(" ")} ${e.custom?"custom":""}`.toLowerCase();
+}
 /* Render a list of exercises split into labelled sections. `row` renders one
-   item; `withAdd` shows a "＋ Add" button per header for custom exercises. */
-function groupedHTML(list,row,withAdd){
+   item; `addFn` (function name) shows a "＋ Add" button per header. Headers
+   carry data-g so live search can hide empty sections without re-rendering. */
+function groupedHTML(list,row,addFn){
   const buckets={};
-  for(const e of list){const g=GROUP_OF[e.muscles[0]]||"Other";(buckets[g]=buckets[g]||[]).push(e);}
+  for(const e of list){const g=exGroup(e);(buckets[g]=buckets[g]||[]).push(e);}
   return GROUP_ORDER.filter(g=>buckets[g]).map(g=>{
     const items=buckets[g].sort((a,b)=>(b.fav-a.fav)||a.name.localeCompare(b.name));
-    return `<div class="row" style="margin:14px 4px 8px">
+    return `<div class="row grp-h" data-g="${g}" style="margin:14px 4px 8px">
       <p class="sec grow" style="margin:0">${g.toUpperCase()} <span style="color:var(--fg3);font-weight:500">· ${items.length}</span></p>
-      ${withAdd?`<button style="font-size:12px;font-weight:700;color:var(--accent)" onclick="editEx(null,'${GROUP_ADD[g]}')" aria-label="Add custom ${g} exercise">＋ Add</button>`:""}
+      ${addFn?`<button style="font-size:12px;font-weight:700;color:var(--accent)" onclick="${addFn}('${GROUP_ADD[g]}')" aria-label="Add custom ${g} exercise">＋ Add</button>`:""}
     </div>`+items.map(row).join("");
   }).join("")||"";
 }
@@ -515,6 +523,7 @@ function render(){
   applyTheme();
   const views={home,train,exercises:exLib,progress,history,settings,session};
   $("#app").innerHTML=(UI.tab==="session"&&!S.session&&!UI.summary)?home():views[UI.tab]();
+  if(UI.tab==="exercises")filterLib(); /* re-apply live search after re-render */
   renderTabs();renderSheet();renderRest();
 }
 function renderTabs(){
@@ -851,40 +860,44 @@ const emptyWeek=()=>({days:Array.from({length:7},(_,i)=>({weekday:i,templateId:n
 
 /* ── EXERCISE LIBRARY ────────────────────────────────────────────────── */
 function exLib(){
-  const q=UI.q.trim().toLowerCase();
+  /* chips filter here; the search box only hides/shows rows via filterLib() */
   const list=S.exercises.filter(e=>{
     if(UI.filter==="fav"&&!e.fav)return false;
     if(UI.filter!=="all"&&UI.filter!=="fav"&&!e.muscles.includes(UI.filter))return false;
-    if(!q)return true;
-    return e.name.toLowerCase().includes(q)||e.muscles.some(m=>MUSCLES[m].toLowerCase().includes(q))||EQUIP[e.equipment].toLowerCase().includes(q);
-  }).sort((a,b)=>a.name.localeCompare(b.name));
+    return true;
+  });
   const filters=["all","fav","chest","back","shoulders","biceps","triceps","quads","hamstrings","glutes","abs","calves","cardio"];
   return `<div class="row" style="align-items:flex-end"><h1 class="grow">Exercises</h1>
     <button class="btn soft sm" style="margin-bottom:16px" onclick="editEx(null)">＋ New</button></div>
-  <input class="input" type="search" placeholder="Search name, muscle, equipment…" value="${esc(UI.q)}"
-    oninput="UI.q=this.value;renderList()" style="margin-bottom:10px" aria-label="Search exercises">
+  <input class="input" type="search" placeholder="Search name, muscle, category…" value="${esc(UI.q)}"
+    oninput="UI.q=this.value;filterLib()" style="margin-bottom:10px" aria-label="Search exercises">
   <div class="chips">${filters.map(f=>`<button class="chip ${UI.filter===f?"on":""}" onclick="UI.filter='${f}';render()">${f==="all"?"All":f==="fav"?"♥ Favorites":MUSCLES[f]}</button>`).join("")}</div>
-  <div id="exlist">${exListHTML(list)}</div>`;
+  <div id="exlist">${exListHTML(list)}</div>
+  <div id="exempty" class="card empty" style="display:none"><div class="ico">🔍</div>
+    <p class="t">No exercises found</p><p class="s">Use ＋ Add on a category to create it.</p></div>`;
+}
+function addExFor(muscle){editEx(null,muscle);}
+/* live search: hide/show rows and section headers — no re-render, no jumps */
+function filterLib(){
+  const q=(UI.q||"").trim().toLowerCase();
+  let any=false;
+  document.querySelectorAll("#exlist .lib-r").forEach(r=>{
+    const show=!q||r.dataset.s.includes(q);
+    r.style.display=show?"":"none";if(show)any=true;});
+  document.querySelectorAll("#exlist .grp-h").forEach(h=>{
+    const vis=[...document.querySelectorAll(`#exlist .lib-r[data-g="${h.dataset.g}"]`)].some(r=>r.style.display!=="none");
+    h.style.display=vis?"":"none";});
+  const em=$("#exempty");if(em)em.style.display=any?"none":"";
 }
 function exListHTML(list){
-  if(!list.length)return `<div class="card empty"><div class="ico">🔍</div><p class="t">No exercises found</p><p class="s">Try another search, or create a custom exercise.</p></div>`;
-  const row=e=>`<div class="card row" style="padding:0;margin-bottom:8px;overflow:hidden">
+  if(!list.length)return `<div class="card empty"><div class="ico">🔍</div><p class="t">No exercises found</p><p class="s">Try another filter, or create a custom exercise.</p></div>`;
+  const row=e=>`<div class="card row lib-r" data-g="${exGroup(e)}" data-s="${esc(exSearchStr(e))}" style="padding:0;margin-bottom:8px;overflow:hidden">
     <button class="grow" style="text-align:left;padding:14px 0 14px 16px" onclick="openSheet({type:'exdetail',id:'${e.id}'})">
       <b class="trunc" style="display:block">${esc(e.name)}${e.custom?' <span style="font-size:10px;font-weight:800;color:var(--accent);background:var(--accent-soft);border-radius:99px;padding:2px 8px">CUSTOM</span>':""}</b>
       <span class="muted trunc" style="display:block">${e.muscles.map(m=>MUSCLES[m]).join(" · ")} — ${EQUIP[e.equipment]}</span></button>
     <button style="padding:16px;font-size:17px;color:${e.fav?"var(--danger)":"var(--fg3)"}" onclick="favEx('${e.id}')" aria-label="Favorite">${e.fav?"♥":"♡"}</button>
   </div>`;
-  return groupedHTML(list,row,true);
-}
-function renderList(){
-  const q=UI.q.trim().toLowerCase();
-  const list=S.exercises.filter(e=>{
-    if(UI.filter==="fav"&&!e.fav)return false;
-    if(UI.filter!=="all"&&UI.filter!=="fav"&&!e.muscles.includes(UI.filter))return false;
-    if(!q)return true;
-    return e.name.toLowerCase().includes(q)||e.muscles.some(m=>MUSCLES[m].toLowerCase().includes(q))||EQUIP[e.equipment].toLowerCase().includes(q);
-  }).sort((a,b)=>a.name.localeCompare(b.name));
-  const el=$("#exlist");if(el)el.innerHTML=exListHTML(list);
+  return groupedHTML(list,row,"addExFor");
 }
 function favEx(id){const e=E(id);e.fav=!e.fav;save();render();}
 function editEx(id,presetMuscle){
@@ -1075,7 +1088,15 @@ function importJSON(input){
 
 /* ── SHEETS ──────────────────────────────────────────────────────────── */
 function openSheet(sh){UI.sheet=sh;renderSheet();}
-function closeSheet(){UI.sheet=null;UI.picker=new Set();renderSheet();}
+function closeSheet(){
+  /* closing the create-form that was opened from the picker → back to picker */
+  if(UI.sheet&&UI.sheet.type==="exform"&&UI.pickerReturn){
+    const pr=UI.pickerReturn;UI.pickerReturn=null;
+    UI.picker=new Set(pr.picked);UI.pickerQ=pr.q;
+    UI.sheet={type:"picker",target:pr.target};renderSheet();return;
+  }
+  UI.sheet=null;UI.picker=new Set();UI.pickerReturn=null;renderSheet();
+}
 function renderSheet(){
   const root=$("#sheetroot");
   if(!UI.sheet){root.innerHTML="";document.body.style.overflow="";return;}
@@ -1088,6 +1109,7 @@ function renderSheet(){
       <div class="hd"><span style="width:32px"></span><h2>${body.title}</h2>
         <button class="icobtn" onclick="closeSheet()" aria-label="Close">✕</button></div>
       <div class="bd">${body.html}</div></div></div>`;
+  if(t==="picker"){filterPicker();updatePickBtn();}
 }
 function shExDetail(){
   const e=E(UI.sheet.id);
@@ -1140,31 +1162,70 @@ function saveEx(){
   delete d._isNew;
   const i=S.exercises.findIndex(x=>x.id===d.id);
   if(i>=0)S.exercises[i]=d;else S.exercises.push(d);
-  save();closeSheet();render();
+  save();
+  if(UI.pickerReturn){ /* created from inside the picker → go back, pre-selected */
+    const pr=UI.pickerReturn;UI.pickerReturn=null;
+    UI.picker=new Set(pr.picked);UI.picker.add(d.id);UI.pickerQ="";
+    UI.sheet={type:"picker",target:pr.target};renderSheet();render();
+    return;
+  }
+  closeSheet();render();
 }
 /* exercise picker (session + template).
-   The search field re-renders ONLY #pickerlist below it — never itself —
-   so the keyboard/focus is preserved while typing. */
+   All rows render ONCE; typing only toggles row visibility (no innerHTML
+   swaps), so the keyboard, scroll position, and autocorrect never jump. */
 function openPicker(target){UI.picker=new Set();UI.pickerQ="";openSheet({type:"picker",target});}
 function shPicker(){
-  return {title:"Add Exercises",html:`
-    <input class="input" type="search" placeholder="Search exercises…" value="${esc(UI.pickerQ||"")}"
-      oninput="UI.pickerQ=this.value;renderPickerList()" style="margin-bottom:10px" aria-label="Search exercises">
-    <div id="pickerlist">${pickerListHTML()}</div>`};
-}
-function pickerListHTML(){
-  const q=(UI.pickerQ||"").toLowerCase();
-  const list=S.exercises.filter(e=>!q||e.name.toLowerCase().includes(q)||e.muscles.some(m=>MUSCLES[m].toLowerCase().includes(q))||EQUIP[e.equipment].toLowerCase().includes(q));
   const row=e=>{const on=UI.picker.has(e.id);
-    return `<button class="row" style="width:100%;text-align:left;padding:10px 12px;border-radius:14px;background:${on?"var(--accent-soft)":"var(--elev)"};margin-bottom:6px" onclick="togglePick('${e.id}')">
-    <span style="width:24px;height:24px;border-radius:99px;border:2px solid ${on?"var(--accent)":"var(--sep)"};background:${on?"var(--accent)":"transparent"};color:#fff;display:flex;align-items:center;justify-content:center;flex:none;font-size:13px">${on?"✓":""}</span>
+    return `<button class="row pick-r" id="pk-${e.id}" data-g="${exGroup(e)}" data-s="${esc(exSearchStr(e))}"
+    style="width:100%;text-align:left;padding:10px 12px;border-radius:14px;background:${on?"var(--accent-soft)":"var(--elev)"};margin-bottom:6px" onclick="togglePick('${e.id}')">
+    <span class="pk-c" style="width:24px;height:24px;border-radius:99px;border:2px solid ${on?"var(--accent)":"var(--sep)"};background:${on?"var(--accent)":"transparent"};color:#fff;display:flex;align-items:center;justify-content:center;flex:none;font-size:13px">${on?"✓":""}</span>
     <span class="grow"><b class="trunc" style="display:block;font-size:14px">${e.fav?"♥ ":""}${esc(e.name)}</b>
     <span class="muted trunc" style="display:block;font-size:12px">${e.muscles.map(m=>MUSCLES[m]).join(" · ")}</span></span></button>`;};
-  return groupedHTML(list,row)+
-    `<div style="position:sticky;bottom:0;padding-top:10px">${UI.picker.size?`<button class="btn primary lg" onclick="confirmPick()">Add ${UI.picker.size} exercise${UI.picker.size>1?"s":""}</button>`:""}</div>`;
+  return {title:"Add Exercises",html:`
+    <input class="input" type="search" placeholder="Search exercises…" value="${esc(UI.pickerQ||"")}"
+      oninput="UI.pickerQ=this.value;filterPicker()" style="margin-bottom:10px" aria-label="Search exercises">
+    <div id="pickerlist">${groupedHTML(S.exercises,row,"addExFromPicker")}</div>
+    <div id="pickempty" class="empty" style="display:none"><div class="ico">🔍</div>
+      <p class="t">Nothing found</p><p class="s">Use ＋ Add on a category to create it.</p></div>
+    <div id="pickconfirm" style="position:sticky;bottom:0;padding-top:10px"></div>`};
 }
-function renderPickerList(){const el=$("#pickerlist");if(el)el.innerHTML=pickerListHTML();}
-function togglePick(id){UI.picker.has(id)?UI.picker.delete(id):UI.picker.add(id);renderPickerList();}
+/* show/hide rows + section headers to match the query — DOM stays intact */
+function filterPicker(){
+  const q=(UI.pickerQ||"").trim().toLowerCase();
+  let any=false;
+  document.querySelectorAll("#pickerlist .pick-r").forEach(r=>{
+    const show=!q||r.dataset.s.includes(q);
+    r.style.display=show?"":"none";if(show)any=true;});
+  document.querySelectorAll("#pickerlist .grp-h").forEach(h=>{
+    const vis=[...document.querySelectorAll(`#pickerlist .pick-r[data-g="${h.dataset.g}"]`)].some(r=>r.style.display!=="none");
+    h.style.display=vis?"":"none";});
+  const em=$("#pickempty");if(em)em.style.display=any?"none":"";
+}
+function updatePickBtn(){
+  const el=$("#pickconfirm");if(!el)return;
+  el.innerHTML=UI.picker.size?`<button class="btn primary lg" onclick="confirmPick()">Add ${UI.picker.size} exercise${UI.picker.size>1?"s":""}</button>`:"";
+}
+/* toggle in place — no list re-render, no scroll jump */
+function togglePick(id){
+  const on=!UI.picker.has(id);
+  on?UI.picker.add(id):UI.picker.delete(id);
+  const btn=document.getElementById("pk-"+id);
+  if(btn){
+    btn.style.background=on?"var(--accent-soft)":"var(--elev)";
+    const c=btn.querySelector(".pk-c");
+    c.style.borderColor=on?"var(--accent)":"var(--sep)";
+    c.style.background=on?"var(--accent)":"transparent";
+    c.textContent=on?"✓":"";
+  }
+  updatePickBtn();
+}
+/* create a custom exercise from inside the picker, then come back with it
+   pre-selected (previous selections preserved) */
+function addExFromPicker(muscle){
+  UI.pickerReturn={target:UI.sheet.target,picked:[...UI.picker],q:UI.pickerQ||""};
+  editEx(null,muscle);
+}
 function confirmPick(){
   const ids=[...UI.picker];
   if(UI.sheet.target==="session"){
